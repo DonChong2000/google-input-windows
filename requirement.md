@@ -51,6 +51,7 @@ extension hides it. Names are the extension's native names, in its order:
 |---|---|
 | Chinese | 拼音, 双拼 ×6 (智能ABC, 微软方案, 小鹤, 拼音加加, 紫光, 自然码), 五笔, 漢語拼音, 倉頡, 倉頡（五代）, 速成, 廣東話, 粵拼 |
 | Others | አማርኛ, العربية, বাংলা, Ελληνικά, ગુજરાતી, हिन्दी, עִבְרִית, ಕನ್ನಡ, മലയാളം, मराठी, नेपाली, ଓଡ଼ିଆ, فارسی, ਪੰਜਾਬੀ, Русский, संस्कृतम्, Српски, සිංහල, தமிழ், తెలుగు, ትግርኛ, اردو, Tiếng Việt, Беларуская, Български, Українська, ภาษาไทย |
+| Keyboards | US International (`vkd_us_intl`) under its seven languages: Nederlands, Français, Deutsch, Italiano, Português (Brasil), Português (Portugal), Español |
 | Extra | 日本語 |
 
 Per-tool settings come from each tool's `imeconfigs/*.js`:
@@ -84,8 +85,16 @@ Per-tool settings come from each tool's `imeconfigs/*.js`:
   - bn/kn/mr/fa/ur: digits become native digits
   - bn/kn/mr/gu/ne: `|` → `।`
 
-Excluded: Google's on-screen keyboards, handwriting and voice. They are not
-text-transliteration services.
+**Keyboards** (`layouts/us_intl.js`): no candidate box and no lookups.
+- AltGr (Right Alt or Ctrl+Alt) plus a key types the layout's character, e.g.
+  AltGr+E → é, AltGr+, → ç, AltGr+Shift+E → É.
+- Everything else types as usual. When the text before the caret plus the new key
+  matches the layout's `transform` table, the app deletes those characters and
+  types the replacement, as the extension's `commitText(text, back)` does: `'`
+  then `e` → é, `` ` `` then `a` → à, `^` then `o` → ô, `"` then `i` → ï, `~` then
+  `n` → ñ.
+
+Excluded: Google's other on-screen keyboards, handwriting and voice.
 
 ## R4. Same UI as Google Input Tools
 The candidate box follows `chext_inputtoolsbin.css` (`ita-ppe-*`):
@@ -202,4 +211,9 @@ in `%APPDATA%\GoogleInputTools\settings.json`.
 - After 2 s without an answer, a held key commits the raw letters. The extension
   drops it instead.
 - Status-bar icons are drawn as text glyphs approximating the extension's sprite.
+- Keyboard tools remap the physical keys only. The clickable on-screen keyboard
+  is not drawn. Only US International is ported (en-US's own intl keyboard is a
+  different layout and isn't), and it assumes the Windows
+  layout is plain US. Its transforms only know text this app saw typed, so after
+  a click or arrow key `'` + `e` stays `'e`.
 - It doesn't start with Windows by itself; add a shortcut to `shell:startup`.

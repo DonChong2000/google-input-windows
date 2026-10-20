@@ -23,6 +23,86 @@ pub struct Tool {
     pub enter_raw: bool,     // [4] Enter commits the letters, not the candidate
     pub caret_move: bool,    // [6] Left/Right/Home/End move inside the composition
     pub case_sensitive: bool, // [30]; false also means an uppercase first letter types raw
+    pub keyboard: Option<&'static Keyboard>, // on-screen keyboard tool (`vkd_*`): no lookups
+}
+
+/// ZC.transform: if `before + c` ends with a table key, how many
+/// characters of `before` to replace and with what.
+pub fn transform(table: &[(&str, &'static str)], before: &str, c: char) -> Option<(usize, &'static str)> {
+    let s = format!("{before}{c}");
+    table.iter().find(|(from, _)| s.ends_with(from)).map(|(from, to)| (from.chars().count() - 1, *to))
+}
+
+/// A `layouts/*.js` keyboard: its AltGr layers and `transform` table. The clickable
+/// keyboard picture is not drawn, only the physical keys are remapped.
+// ponytail: no base/Shift/Caps layers, so only layouts whose plain keys equal US
+// QWERTY fit (us_intl); AZERTY (vkd_fr) needs them
+pub struct Keyboard {
+    pub altgr: &'static [(&'static str, &'static str)], // "c,cl": key codes -> chars
+    pub altgr_shift: &'static [(&'static str, &'static str)], // "sc,scl"
+    // ponytail: the extension's keys are regexes; these are literal (us_intl needs no more)
+    pub transform: &'static [(&'static str, &'static str)],
+}
+
+/// `layouts/us_intl.js`, copied verbatim ("{{}}" = no character on that key).
+pub const US_INTL: Keyboard = Keyboard {
+    altgr: &[
+        ("1234567890m=", "¡²³¤€¼½¾‘’¥×"),
+        ("QWERTYUIOP", "äåé®þüúíóö"),
+        ("\u{db}\u{dd}\u{dc}", "«»¬"),
+        ("ASD", "áßđ"),
+        (";\u{de}", "¶´"),
+        ("ZXC", "æœ©"),
+        ("NM", "ñµ"),
+        ("\u{bc}", "ç"),
+        ("\u{bf}", "¿"),
+    ],
+    altgr_shift: &[
+        ("1", "¹"),
+        ("4", "£"),
+        ("=", "÷"),
+        ("QWERTYUIOP", "ÄÅÉ{{}}ÞÜÚÍÓÖ"),
+        ("\u{dc}", "¦"),
+        ("ASD", "Á§Đ"),
+        ("L;\u{de}", "Ø°¨"),
+        ("ZXC", "ÆŒ¢"),
+        ("N", "Ñ"),
+        ("\u{bc}", "Ç"),
+    ],
+    transform: &[
+        ("'a", "á"), ("'e", "é"), ("'i", "í"), ("'o", "ó"), ("'u", "ú"), ("'c", "ç"),
+        ("'A", "Á"), ("'E", "É"), ("'I", "Í"), ("'O", "Ó"), ("'U", "Ú"), ("'C", "Ç"),
+        ("`a", "à"), ("`e", "è"), ("`i", "ì"), ("`o", "ò"), ("`u", "ù"),
+        ("`A", "À"), ("`E", "È"), ("`I", "Ì"), ("`O", "Ò"), ("`U", "Ù"),
+        ("\"a", "ä"), ("\"e", "ë"), ("\"i", "ï"), ("\"o", "ö"), ("\"u", "ü"),
+        ("\"A", "Ä"), ("\"E", "Ë"), ("\"I", "Ï"), ("\"O", "Ö"), ("\"U", "Ü"),
+        ("^a", "â"), ("^e", "ê"), ("^i", "î"), ("^o", "ô"), ("^u", "û"),
+        ("^A", "Â"), ("^E", "Ê"), ("^I", "Î"), ("^O", "Ô"), ("^U", "Û"),
+        ("~a", "ã"), ("~o", "õ"), ("~n", "ñ"), ("~A", "Ã"), ("~O", "Õ"), ("~N", "Ñ"),
+    ],
+};
+
+impl Keyboard {
+    /// What AltGr (Ctrl+Alt) + this Windows virtual key types, if the layout has it.
+    pub fn altgr(&self, vk: u32, shift: bool) -> Option<char> {
+        // the layouts use Firefox key codes for - = ;
+        let code = |k: char| match k {
+            'm' => 0xBD,
+            '=' => 0xBB,
+            ';' => 0xBA,
+            _ => k as u32,
+        };
+        let rows = if shift { self.altgr_shift } else { self.altgr };
+        rows.iter().find_map(|(keys, chars)| {
+            let i = keys.chars().position(|k| code(k) == vk)?;
+            chars.replace("{{}}", "\0").chars().nth(i).filter(|&c| c != '\0')
+        })
+    }
+
+    /// Characters before the caret to delete and what to type instead, if any.
+    pub fn transform(&self, before: &str, c: char) -> Option<(usize, &'static str)> {
+        transform(self.transform, before, c)
+    }
 }
 
 const fn zh(itc: &'static str, name: &'static str, label: &'static str) -> Tool {
@@ -46,6 +126,7 @@ const fn zh(itc: &'static str, name: &'static str, label: &'static str) -> Tool 
         enter_raw: true,
         caret_move: true,
         case_sensitive: false,
+        keyboard: None,
     }
 }
 
@@ -82,7 +163,12 @@ const fn tr(itc: &'static str, name: &'static str, label: &'static str) -> Tool 
         enter_raw: false,
         caret_move: false,
         case_sensitive: true,
+        keyboard: None,
     }
+}
+
+const fn kbd(itc: &'static str, name: &'static str, label: &'static str, k: &'static Keyboard) -> Tool {
+    Tool { keyboard: Some(k), trailing_space: false, ..tr(itc, name, label) }
 }
 
 const fn ctx(t: Tool) -> Tool {
@@ -141,6 +227,14 @@ pub const TOOLS: &[Tool] = &[
     yue("yue-hant-t-i0-und", "廣東話"),
     yue("yue-hant-t-i0-jyutping", "粵拼"),
     Tool { trailing_space: false, ..ctx(tr("th-t-i0-und", "ภาษาไทย", "ก")) },
+    // vkd_us_intl: one layout under seven languages; the extension's other keyboards are not ported
+    kbd("nl-t-k0-intl", "Nederlands - US International", "NL", &US_INTL),
+    kbd("fr-t-k0-intl", "Français - US International", "FR", &US_INTL),
+    kbd("de-t-k0-intl", "Deutsch - US International", "DE", &US_INTL),
+    kbd("it-t-k0-intl", "Italiano - US International", "IT", &US_INTL),
+    kbd("pt-br-t-k0-intl", "Português (Brasil) - US International", "BR", &US_INTL),
+    kbd("pt-pt-t-k0-intl", "Português (Portugal) - US International", "PT", &US_INTL),
+    kbd("es-t-k0-intl", "Español - US International", "ES", &US_INTL),
     // not offered by the extension (its ja config is hidden); kept because the API serves it
     Tool { page: 9, trailing_space: false, case_sensitive: false, ..tr("ja-t-i0-und", "日本語", "あ") },
 ];
@@ -264,7 +358,21 @@ mod tests {
         codes.sort();
         codes.dedup();
         assert_eq!(codes.len(), TOOLS.len());
-        assert_eq!(TOOLS.len(), 41 + 1); // 42 offered - 注音 + 日本語
+        assert_eq!(TOOLS.len(), 41 + 7 + 1); // 42 offered - 注音 + 7 US International + 日本語
+    }
+
+    #[test]
+    fn us_intl_altgr_and_transforms() {
+        let k = &US_INTL;
+        assert_eq!(k.altgr('E' as u32, false), Some('é'));
+        assert_eq!(k.altgr(0xBD, false), Some('¥'), "minus key");
+        assert_eq!(k.altgr(0xBC, true), Some('Ç'), "comma key");
+        assert_eq!(k.altgr('R' as u32, true), None, "{{}} placeholder");
+        assert_eq!(k.altgr('T' as u32, true), Some('Þ'), "after the placeholder");
+        assert_eq!(k.altgr('G' as u32, false), None);
+        assert_eq!(k.transform("l'", 'e'), Some((1, "é")));
+        assert_eq!(k.transform("", '^'), None);
+        assert_eq!(k.transform("x", 'e'), None);
     }
 
     #[test]

@@ -10,13 +10,15 @@ undocumented, so it may change or stop working without notice.
 
 ## Input tools
 
-42 tools:
+49 tools:
 - **Chinese:** 拼音, 双拼 (6 schemes), 五笔, 漢語拼音, 倉頡, 倉頡（五代）, 速成,
   廣東話, 粵拼
 - **Transliteration:** Amharic, Arabic, Bengali, Belarusian, Bulgarian, Greek,
   Gujarati, Hebrew, Hindi, Kannada, Malayalam, Marathi, Nepali, Odia, Persian,
   Punjabi, Russian, Sanskrit, Serbian, Sinhala, Tamil, Telugu, Thai, Tigrinya,
   Ukrainian, Urdu, Vietnamese
+- **Keyboard:** US International for Dutch, French, German, Italian, Portuguese
+  (BR, PT) and Spanish (AltGr accents, `'` + `e` → é)
 - **Japanese**
 
 See [requirement.md](requirement.md) for the exact behavior and the known

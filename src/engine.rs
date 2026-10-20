@@ -37,14 +37,16 @@ pub struct Out {
     pub commit: String,
     /// The key needs candidates that haven't arrived: hold it and feed it again later.
     pub wait: bool,
+    /// Characters before the caret to delete before typing `commit` (keyboard transforms).
+    pub back: usize,
 }
 
 impl Out {
     fn eat() -> Self {
         Out { swallow: true, ..Out::default() }
     }
-    fn text(s: String) -> Self {
-        Out { swallow: true, commit: s, wait: false }
+    pub fn text(s: String) -> Self {
+        Out { swallow: true, commit: s, ..Out::default() }
     }
 }
 
@@ -454,6 +456,18 @@ impl Engine {
             }
             return Out::default();
         };
+        if let Some(kb) = self.tool.keyboard {
+            // Bz: keys type as is unless the text before the caret plus this key transforms
+            let Some((back, s)) = kb.transform(&self.ctx, c) else {
+                self.remember(&c.to_string());
+                return Out::default();
+            };
+            for _ in 0..back {
+                self.ctx.pop();
+            }
+            self.remember(s);
+            return Out { back, ..Out::text(s.to_string()) };
+        }
         // sC.U runs before the bindings: punctuation / full-width first
         if let Some(s) = self.convert(c) {
             let s = self.spaced(s);
@@ -696,6 +710,20 @@ mod tests {
         assert_eq!(e.key(Key::Char('\'')).commit, "「", "idle: Chinese quote");
         typ(&mut e, "gam'jat");
         assert_eq!(e.query().unwrap().text, "|「,gam'jat", "the quote is context, the apostrophe a letter");
+    }
+
+    #[test]
+    fn us_intl_dead_keys_replace_the_typed_accent() {
+        let mut e = eng("fr-t-k0-intl");
+        assert_eq!(e.key(Key::Char('\'')), Out::default(), "the accent types as is");
+        let out = e.key(Key::Char('e'));
+        assert_eq!((out.swallow, out.back, out.commit.as_str()), (true, 1, "é"));
+        assert_eq!(typ(&mut e, "t^"), "");
+        assert_eq!(e.key(Key::Char('e')).commit, "ê");
+        assert!(!e.composing() && e.query().is_none(), "keyboards never look anything up");
+        e.key(Key::Char('\''));
+        e.key(Key::Left);
+        assert_eq!(e.key(Key::Char('a')), Out::default(), "caret moved: no transform");
     }
 
     #[test]

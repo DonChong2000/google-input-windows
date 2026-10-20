@@ -235,6 +235,14 @@ impl App {
             self.state_changed("");
             return self.swallow(vk);
         }
+        if let Some(c) = tool.keyboard.filter(|_| m & (CTRL | ALT) == CTRL | ALT).and_then(|kb| kb.altgr(vk, m & SHIFT != 0)) {
+            // AltGr layer: the app's own (US) layout has nothing there, so always type it
+            let mut out = self.eng.key(Key::Char(c));
+            if !out.swallow {
+                out = Out::text(c.to_string());
+            }
+            return self.apply(out, vk);
+        }
         if m & (CTRL | ALT) != 0 || held(VK_LWIN) || held(VK_RWIN) {
             if !is_modifier(vk) {
                 // unbound shortcut: composition discarded, key goes to the app
@@ -265,6 +273,9 @@ impl App {
     }
 
     fn apply(&mut self, out: Out, vk: u32) -> bool {
+        for _ in 0..out.back {
+            send(&[key(VK_BACK, 0, 0), key(VK_BACK, 0, KEYEVENTF_KEYUP)]);
+        }
         if !out.commit.is_empty() {
             send_text(&out.commit);
         }

@@ -325,9 +325,20 @@ impl Engine {
         match k {
             Key::Char(c) if self.is_letter(c) && !(c.is_ascii_digit() && self.digit_selects()) => {
                 if self.src.len() < MAX_SOURCE {
-                    let at = self.caret;
-                    self.src.insert(at, c);
-                    self.caret = at + 1;
+                    let mut at = self.caret;
+                    let before: String = self.src[..at].iter().collect();
+                    match tools::transform(self.tool.accents, &before, c) {
+                        Some((back, s)) => {
+                            // key 21: "`" then "e" becomes "è" in the letters themselves
+                            self.src.splice(at - back..at, s.chars());
+                            at = at - back + s.chars().count();
+                        }
+                        None => {
+                            self.src.insert(at, c);
+                            at += 1;
+                        }
+                    }
+                    self.caret = at;
                     self.edited();
                 }
                 Out::eat()
@@ -724,6 +735,20 @@ mod tests {
         e.key(Key::Char('\''));
         e.key(Key::Left);
         assert_eq!(e.key(Key::Char('a')), Out::default(), "caret moved: no transform");
+    }
+
+    #[test]
+    fn french_accent_keys_compose_before_lookup() {
+        let mut e = eng("fr-t-i0-und");
+        typ(&mut e, "l'>ecole");
+        assert_eq!(e.view().comp, "l'école");
+        assert_eq!(e.query().unwrap().text, "l'école");
+        typ(&mut e, "`");
+        assert_eq!(e.view().comp, "l'école`", "a lone accent key stays until its letter");
+        typ(&mut e, "a");
+        assert_eq!(e.view().comp, "l'écoleà");
+        assert!(e.key(Key::Back).swallow);
+        assert_eq!(e.view().comp, "l'école");
     }
 
     #[test]

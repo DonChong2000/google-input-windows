@@ -35,7 +35,7 @@ cargo build --release    # target/release/google-input.exe
 | File | Role |
 |---|---|
 | `engine.rs` | The extension's composition logic as a pure state machine. `Engine::key(Key) -> Out { swallow, commit, wait }`, plus `view()` for drawing. No Win32 or network code. Most behavior changes belong here, with a test. |
-| `tools.rs` | The `TOOLS` registry (41 Google tools, 7 US International keyboards, plus hidden-but-served 日本語), built with `zh()`, `yue()`, `cangjie()`, `tr()`, `kbd()`, `ctx()` and `rtl()`. Also per-tool punctuation and digit conversion (`convert`), full width, cangjie radicals, and keyboard layouts (`Keyboard`: AltGr layers + `transform`, copied from `layouts/*.js`). |
+| `tools.rs` | The `TOOLS` registry (41 Google tools, 7 US International keyboards, plus hidden-but-served 日本語, Yale and French), built with `zh()`, `yue()`, `cangjie()`, `tr()`, `kbd()`, `ctx()` and `rtl()`. Also per-tool punctuation and digit conversion (`convert`), full width, cangjie radicals, and keyboard layouts (`Keyboard`: AltGr layers + `transform`, copied from `layouts/*.js`). |
 | `google.rs` | Builds the `inputtools.google.com/request` URL (pre-context `\|ctx,src`) and parses the response, including `matched_length` and annotations. |
 | `config.rs` | `Config` (serde, persisted), `Hotkey`, and the tool commands: next, revert, toggle, select. |
 | `main.rs` | Glue: low-level keyboard and mouse hooks, fetch threads, the tray, the menu and message routing. |

@@ -52,7 +52,11 @@ extension hides it. Names are the extension's native names, in its order:
 | Chinese | 拼音, 双拼 ×6 (智能ABC, 微软方案, 小鹤, 拼音加加, 紫光, 自然码), 五笔, 漢語拼音, 倉頡, 倉頡（五代）, 速成, 廣東話, 粵拼 |
 | Others | አማርኛ, العربية, বাংলা, Ελληνικά, ગુજરાતી, हिन्दी, עִבְרִית, ಕನ್ನಡ, മലയാളം, मराठी, नेपाली, ଓଡ଼ିଆ, فارسی, ਪੰਜਾਬੀ, Русский, संस्कृतम्, Српски, සිංහල, தமிழ், తెలుగు, ትግርኛ, اردو, Tiếng Việt, Беларуская, Български, Українська, ภาษาไทย |
 | Keyboards | US International (`vkd_us_intl`) under its seven languages: Nederlands, Français, Deutsch, Italiano, Português (Brasil), Português (Portugal), Español |
-| Extra | 日本語 |
+| Extra | 日本語, 廣東話（耶魯）(`yue-hant-t-i0-yale`), Français (`fr-t-i0-und`) |
+
+The extras are in the extension's registry but hidden from its list. They are
+kept because the API serves them. Yale uses the 廣東話 settings. Its registry name
+is also 廣東話, so 耶魯 is added to tell them apart.
 
 Per-tool settings come from each tool's `imeconfigs/*.js`:
 - **Page size:** 廣東話/粵拼/五笔 show 6; pinyin, shuangpin and cangjie show 5;
@@ -84,6 +88,11 @@ Per-tool settings come from each tool's `imeconfigs/*.js`:
   - ar/ur/fa: `; ?` → `؛ ؟`; ar and ur also `,` → `،`
   - bn/kn/mr/fa/ur: digits become native digits
   - bn/kn/mr/gu/ne: `|` → `।`
+
+**Français** (`fr_t_i0_und.js`): a normal candidate tool. Type `ecole` and the
+server offers `école`. The composition letters also include `` ` ~ " ^ > ' - ``.
+While composing, an accent key followed by a letter becomes one accented letter
+before the lookup (key 21): `` `e `` → è, `>e` → é, `^e` → ê, `"e` → ë, `~n` → ñ.
 
 **Keyboards** (`layouts/us_intl.js`): no candidate box and no lookups.
 - AltGr (Right Alt or Ctrl+Alt) plus a key types the layout's character, e.g.

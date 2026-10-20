@@ -24,9 +24,28 @@ pub struct Tool {
     pub caret_move: bool,    // [6] Left/Right/Home/End move inside the composition
     pub case_sensitive: bool, // [30]; false also means an uppercase first letter types raw
     pub keyboard: Option<&'static Keyboard>, // on-screen keyboard tool (`vkd_*`): no lookups
+    pub accents: &'static [(&'static str, &'static str)], // [21] while composing: "`e" -> "è"
 }
 
-/// ZC.transform: if `before + c` ends with a table key, how many
+/// `fr_t_i0_und.js` table `f` (keys 19/21: the last two letters typed), generated from the file.
+const FR_ACCENTS: &[(&str, &str)] = &[
+    ("`A", "À"), ("`E", "È"), ("`I", "Ì"), ("`N", "Ǹ"), ("`O", "Ò"), ("`U", "Ù"), ("`W", "Ẁ"), ("`Y", "Ỳ"),
+    ("`a", "à"), ("`e", "è"), ("`i", "ì"), ("`n", "ǹ"), ("`o", "ò"), ("`u", "ù"), ("`w", "ẁ"), ("`y", "ỳ"),
+    ("^A", "Â"), ("^C", "Ĉ"), ("^E", "Ê"), ("^G", "Ĝ"), ("^H", "Ĥ"), ("^I", "Î"), ("^J", "Ĵ"), ("^O", "Ô"),
+    ("^S", "Ŝ"), ("^U", "Û"), ("^W", "Ŵ"), ("^Y", "Ŷ"), ("^Z", "Ẑ"), ("^a", "â"), ("^c", "ĉ"), ("^e", "ê"),
+    ("^g", "ĝ"), ("^h", "ĥ"), ("^i", "î"), ("^j", "ĵ"), ("^o", "ô"), ("^s", "ŝ"), ("^u", "û"), ("^w", "ŵ"),
+    ("^y", "ŷ"), ("^z", "ẑ"), ("~A", "Ã"), ("~E", "Ẽ"), ("~I", "Ĩ"), ("~N", "Ñ"), ("~O", "Õ"), ("~U", "Ũ"),
+    ("~V", "Ṽ"), ("~Y", "Ỹ"), ("~a", "ã"), ("~e", "ẽ"), ("~i", "ĩ"), ("~n", "ñ"), ("~o", "õ"), ("~u", "ũ"),
+    ("~v", "ṽ"), ("~y", "ỹ"), ("\"A", "Ä"), ("\"E", "Ë"), ("\"H", "Ḧ"), ("\"I", "Ï"), ("\"O", "Ö"), ("\"U", "Ü"),
+    ("\"W", "Ẅ"), ("\"X", "Ẍ"), ("\"Y", "Ÿ"), ("\"a", "ä"), ("\"e", "ë"), ("\"h", "ḧ"), ("\"i", "ï"), ("\"o", "ö"),
+    ("\"t", "ẗ"), ("\"u", "ü"), ("\"w", "ẅ"), ("\"x", "ẍ"), ("\"y", "ÿ"), (">A", "Á"), (">C", "Ć"), (">E", "É"),
+    (">G", "Ǵ"), (">I", "Í"), (">K", "Ḱ"), (">L", "Ĺ"), (">M", "Ḿ"), (">N", "Ń"), (">O", "Ó"), (">P", "Ṕ"),
+    (">R", "Ŕ"), (">S", "Ś"), (">U", "Ú"), (">W", "Ẃ"), (">Y", "Ý"), (">Z", "Ź"), (">a", "á"), (">c", "ć"),
+    (">e", "é"), (">g", "ǵ"), (">i", "í"), (">k", "ḱ"), (">l", "ĺ"), (">m", "ḿ"), (">n", "ń"), (">o", "ó"),
+    (">p", "ṕ"), (">r", "ŕ"), (">s", "ś"), (">u", "ú"), (">w", "ẃ"), (">y", "ý"), (">z", "ź"),
+];
+
+/// ZC.transform / the imeconfig `g`: if `before + c` ends with a table key, how many
 /// characters of `before` to replace and with what.
 pub fn transform(table: &[(&str, &'static str)], before: &str, c: char) -> Option<(usize, &'static str)> {
     let s = format!("{before}{c}");
@@ -127,6 +146,7 @@ const fn zh(itc: &'static str, name: &'static str, label: &'static str) -> Tool 
         caret_move: true,
         case_sensitive: false,
         keyboard: None,
+        accents: &[],
     }
 }
 
@@ -164,6 +184,7 @@ const fn tr(itc: &'static str, name: &'static str, label: &'static str) -> Tool 
         caret_move: false,
         case_sensitive: true,
         keyboard: None,
+        accents: &[],
     }
 }
 
@@ -235,6 +256,9 @@ pub const TOOLS: &[Tool] = &[
     kbd("pt-br-t-k0-intl", "Português (Brasil) - US International", "BR", &US_INTL),
     kbd("pt-pt-t-k0-intl", "Português (Portugal) - US International", "PT", &US_INTL),
     kbd("es-t-k0-intl", "Español - US International", "ES", &US_INTL),
+    // in the registry but hidden by the extension; kept because the API serves them
+    yue("yue-hant-t-i0-yale", "廣東話（耶魯）"),
+    Tool { extra: "`~\"^>'-", accents: FR_ACCENTS, ..ctx(tr("fr-t-i0-und", "Français", "Fr")) },
     // not offered by the extension (its ja config is hidden); kept because the API serves it
     Tool { page: 9, trailing_space: false, case_sensitive: false, ..tr("ja-t-i0-und", "日本語", "あ") },
 ];
@@ -358,7 +382,7 @@ mod tests {
         codes.sort();
         codes.dedup();
         assert_eq!(codes.len(), TOOLS.len());
-        assert_eq!(TOOLS.len(), 41 + 7 + 1); // 42 offered - 注音 + 7 US International + 日本語
+        assert_eq!(TOOLS.len(), 41 + 7 + 3); // 42 offered - 注音 + 7 US International + Yale, French, 日本語
     }
 
     #[test]
